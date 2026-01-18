@@ -1,0 +1,232 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Voting Admin</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Arial;max-width:980px;margin:20px auto;padding:0 12px}
+  fieldset{border:1px solid #ddd;border-radius:10px;padding:12px;margin:12px 0}
+  label{display:block;margin:8px 0 4px}
+  input,select,button{font:inherit;padding:8px;border-radius:8px;border:1px solid #ccc}
+  button{cursor:pointer}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row > *{flex:1}
+  pre{background:#111;color:#0f0;padding:10px;border-radius:10px;overflow:auto}
+  img{max-width:180px;height:auto;border-radius:8px;border:1px solid #ddd}
+  table{border-collapse:collapse;width:100%}
+  th,td{border-bottom:1px solid #eee;padding:8px;text-align:left;vertical-align:top}
+</style>
+
+<h2>Διαχείριση Ψηφοφορίας</h2>
+
+<fieldset>
+  <legend>Σύνδεση</legend>
+  <div class="row">
+    <input id="u" placeholder="username">
+    <input id="p" type="password" placeholder="password">
+    <button onclick="login()">Login</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Δημιουργία poll</legend>
+  <label>Τίτλος</label>
+  <input id="pollTitle" placeholder="π.χ. Ψηφοφορία Εργασιών Β1">
+  <div class="row">
+    <div>
+      <label>Starts (YYYY-MM-DD HH:MM:SS)</label>
+      <input id="startsAt" placeholder="2026-01-20 09:00:00">
+    </div>
+    <div>
+      <label>Ends (YYYY-MM-DD HH:MM:SS)</label>
+      <input id="endsAt" placeholder="2026-01-20 12:00:00">
+    </div>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button onclick="createPoll()">Create poll</button>
+    <button onclick="loadPolls()">Reload polls</button>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Επιλογή poll</legend>
+  <div class="row">
+    <select id="pollSelect"></select>
+    <button onclick="loadImages()">Load images</button>
+    <button onclick="resetVotes()">Reset votes</button>
+    <button onclick="showResults()">Results</button>
+  </div>
+  <div id="pollInfo" style="margin-top:8px;color:#555"></div>
+</fieldset>
+
+<fieldset>
+  <legend>Upload εικόνας στο επιλεγμένο poll</legend>
+  <form id="uploadForm">
+    <label>Τίτλος εικόνας</label>
+    <input name="title" placeholder="π.χ. Μακέτα 1">
+    <div class="row">
+      <div>
+        <label>Sort order</label>
+        <input name="sort_order" type="number" value="0">
+      </div>
+      <div>
+        <label>Αρχείο (jpg/png/webp)</label>
+        <input name="image" type="file" accept="image/jpeg,image/png,image/webp" required>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button type="button" onclick="uploadImage()">Upload</button>
+    </div>
+  </form>
+</fieldset>
+
+<fieldset>
+  <legend>Εικόνες poll</legend>
+  <table>
+    <thead><tr><th>ID</th><th>Τίτλος</th><th>Path</th><th>Preview</th></tr></thead>
+    <tbody id="imagesTbody"></tbody>
+  </table>
+</fieldset>
+
+<pre id="out"></pre>
+
+<script>
+const BASE = '/school/voting';
+const api = (route, opt={}) => {
+  const url = `${BASE}/api/index.php?r=${encodeURIComponent(route)}`;
+  const headers = opt.headers || {};
+  const fetchOpt = {
+    method: opt.method || 'GET',
+    credentials: 'include',
+    headers,
+    body: opt.body
+  };
+  if (opt.json) {
+    fetchOpt.headers = {'Content-Type':'application/json', ...headers};
+    fetchOpt.body = JSON.stringify(opt.data || {});
+  }
+  return fetch(url, fetchOpt).then(async r=>{
+    let data=null; try{data=await r.json();}catch(_){}
+    if(!r.ok){
+      const msg = (data && data.error) ? data.error : `HTTP ${r.status}`;
+      const e = new Error(msg); e.status=r.status; e.data=data; throw e;
+    }
+    return data;
+  });
+};
+
+function log(x){ out.textContent = (typeof x==='string') ? x : JSON.stringify(x,null,2); }
+
+async function login(){
+  try{
+    const res = await api('/auth/login',{method:'POST',json:true,data:{username:u.value.trim(),password:p.value}});
+    log(res);
+  }catch(e){ log('ERROR: '+e.message); }
+}
+
+async function logout(){
+  try{ log(await api('/auth/logout',{method:'POST'})); }catch(e){ log('ERROR: '+e.message); }
+}
+
+async function loadPolls(){
+  try{
+    const res = await api('/admin/polls');
+    log(res);
+    pollSelect.innerHTML = '';
+    (res.polls||[]).forEach(p=>{
+      const o=document.createElement('option');
+      o.value = p.id;
+      o.textContent = `#${p.id} ${p.title} [${p.state}]`;
+      pollSelect.appendChild(o);
+    });
+    showSelectedPollInfo(res.polls||[]);
+  }catch(e){ log('ERROR: '+e.message); }
+}
+
+function showSelectedPollInfo(polls){
+  const id = +pollSelect.value || 0;
+  const p = polls.find(x=>+x.id===id);
+  pollInfo.textContent = p ? `${p.title} | ${p.starts_at} → ${p.ends_at} | state=${p.state}` : '';
+}
+
+pollSelect?.addEventListener('change', ()=>loadPolls());
+
+async function createPoll(){
+  try{
+    const payload = {
+      title: pollTitle.value.trim(),
+      starts_at: startsAt.value.trim(),
+      ends_at: endsAt.value.trim()
+    };
+    const res = await api('/admin/polls',{method:'POST',json:true,data:payload});
+    log(res);
+    await loadPolls();
+  }catch(e){ log('ERROR: '+e.message); }
+}
+
+async function loadImages(){
+  const id = +pollSelect.value || 0;
+  if(!id){ log('Διάλεξε poll'); return; }
+  try{
+    const res = await api(`/admin/polls/${id}/images`);
+    log(res);
+    imagesTbody.innerHTML = '';
+    (res.images||[]).forEach(im=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML = `
+        <td>${im.id}</td>
+        <td>${escapeHtml(im.title||'')}</td>
+        <td><code>${escapeHtml(im.file_path||'')}</code></td>
+        <td>${im.file_path ? `<img src="${BASE}/${im.file_path}">` : ''}</td>
+      `;
+      imagesTbody.appendChild(tr);
+    });
+  }catch(e){ log('ERROR: '+e.message); }
+}
+
+async function uploadImage(){
+  const pollId = +pollSelect.value || 0;
+  if(!pollId){ log('Διάλεξε poll'); return; }
+
+  const form = document.getElementById('uploadForm');
+  const fd = new FormData(form);
+
+  try{
+    const res = await api(`/admin/polls/${pollId}/images`,{
+      method:'POST',
+      // ΜΗΝ βάλεις Content-Type εδώ, το βάζει το browser με boundary
+      headers:{},
+      body: fd
+    });
+    log(res);
+    form.reset();
+    await loadImages();
+  }catch(e){ log('ERROR: '+e.message); }
+}
+
+async function resetVotes(){
+  const id = +pollSelect.value || 0;
+  if(!id){ log('Διάλεξε poll'); return; }
+  if(!confirm('Reset votes; Θα σβηστούν όλα τα votes/sessions του poll.')) return;
+
+  try{
+    const res = await api(`/admin/polls/${id}/reset`,{method:'POST',json:true,data:{}});
+    log(res);
+  }catch(e){ log('ERROR: '+e.message); }
+}
+
+async function showResults(){
+  const id = +pollSelect.value || 0;
+  if(!id){ log('Διάλεξε poll'); return; }
+  try{
+    const res = await api(`/admin/polls/${id}/results`);
+    log(res);
+  }catch(e){ log('ERROR: '+e.message); }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+// αρχική φόρτωση
+loadPolls();
+</script>

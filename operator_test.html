@@ -1,0 +1,52 @@
+<!doctype html><meta charset="utf-8">
+<title>Operator test</title>
+
+<h3>Login</h3>
+<input id="u" placeholder="username">
+<input id="p" placeholder="password" type="password">
+<button onclick="login()">login</button>
+<button onclick="logout()">logout</button>
+<pre id="out"></pre>
+
+<h3>Polls</h3>
+<button onclick="loadPolls()">load polls</button>
+<div id="polls"></div>
+
+<script>
+const api = (r, opt={}) => fetch(`/school/voting/api/index.php?r=${encodeURIComponent(r)}`, {
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json', ...(opt.headers||{}) },
+  ...opt
+}).then(r=>r.json());
+
+async function login(){
+  const res = await api('/auth/login',{method:'POST',body:JSON.stringify({username:u.value,password:p.value})});
+  out.textContent = JSON.stringify(res,null,2);
+}
+async function logout(){
+  const res = await api('/auth/logout',{method:'POST'});
+  out.textContent = JSON.stringify(res,null,2);
+}
+async function loadPolls(){
+  const res = await api('/operator/polls');
+  out.textContent = JSON.stringify(res,null,2);
+  polls.innerHTML = '';
+  (res.polls||[]).forEach(p=>{
+    const d=document.createElement('div');
+    d.innerHTML = `
+      <b>${p.id}</b> ${p.title} [${p.state}] (${p.starts_at} → ${p.ends_at})
+      <button data-id="${p.id}" onclick="startPoll(${p.id})">START</button>
+      <button data-id="${p.id}" onclick="endPoll(${p.id})">END</button>
+    `;
+    polls.appendChild(d);
+  });
+}
+async function startPoll(id){
+  const res = await api(`/operator/polls/${id}/start`,{method:'POST'});
+  out.textContent = JSON.stringify(res,null,2);
+}
+async function endPoll(id){
+  const res = await api(`/operator/polls/${id}/end`,{method:'POST'});
+  out.textContent = JSON.stringify(res,null,2);
+}
+</script>

@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Συλλογή Εικόνων - Classroom Voting</title>
+
+    <script src="../js/sweetalert2@11.js"></script>
+    <link rel="stylesheet" href="../css/alternate_fonts.css">
+    <link rel="stylesheet" href="../css/modal-audio.css">
+
+    <style>
+        /* --- Βασικό Στυλ --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4e89ae 0%, #43658b 100%);
+            padding: 20px;
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 { text-align: center; color: #43658b; margin-bottom: 10px; font-size: 2.5em; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 14px; font-size: 1.2em; }
+
+        .poll-meta {
+            text-align: center;
+            color: #555;
+            font-size: 0.95em;
+            margin-bottom: 25px;
+        }
+        .poll-meta b { color: #43658b; }
+
+        .content-footer { text-align: center; font-size: 0.9em; color: #777; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
+
+        /* --- Grid Layout --- */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            padding: 10px;
+        }
+
+        .gallery-item {
+            background: #fff;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 1px solid #eee;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            border-color: #4e89ae;
+        }
+
+        /* --- Winner Badges --- */
+        .gallery-item.winner-1 {
+            background: linear-gradient(135deg, #FFF9E6 0%, #FFE8B8 100%);
+            border: 3px solid #FFD700;
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .gallery-item.winner-2 {
+            background: linear-gradient(135deg, #F5F5F5 0%, #E8E8E8 100%);
+            border: 3px solid #C0C0C0;
+            box-shadow: 0 5px 20px rgba(192, 192, 192, 0.4);
+        }
+
+        .gallery-item.winner-3 {
+            background: linear-gradient(135deg, #FFF0E6 0%, #FFE0CC 100%);
+            border: 3px solid #CD7F32;
+            box-shadow: 0 5px 20px rgba(205, 127, 50, 0.4);
+        }
+
+        .winner-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 2.5em;
+            z-index: 3;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        /* Modal Winner Badge */
+        .modal-winner-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 3em;
+            z-index: 10;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .img-wrapper {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid #4e89ae;
+        }
+
+        .gallery-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s;
+        }
+
+        .gallery-item:hover .gallery-thumb { transform: scale(1.05); }
+
+        .gallery-caption-preview {
+            padding: 15px;
+            text-align: center;
+            position: relative;
+        }
+
+        .gallery-caption-preview h3 {
+            color: #43658b;
+            font-size: 1.1em;
+            margin: 0 0 8px 0;
+        }
+
+        .gallery-img-number {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.85em;
+            backdrop-filter: blur(2px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .gallery-winner-badge {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            font-size: 2em;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        /* --- Stars --- */
+        .star-rating {
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .star {
+            font-size: 28px;
+            color: #ddd;
+            transition: transform 0.1s, color 0.2s;
+        }
+
+        .star.filled { color: #ffc107; }
+        .star.partial-fill { color: transparent; -webkit-background-clip: text; background-clip: text; }
+
+        .star-rating.interactive .star {
+            cursor: pointer;
+        }
+        .star-rating.interactive .star:hover { transform: scale(1.1); }
+
+        .grid-stars .star { font-size: 18px; }
+
+        /* --- Panels --- */
+        #student-panel, #admin-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 999;
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 12px 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            border: 1px solid rgba(0,0,0,0.05);
+            backdrop-filter: blur(6px);
+        }
+        #student-panel { display: none; }
+        #admin-panel {
+            left: auto;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: stretch;
+            min-width: 200px;
+        }
+
+        .btn-save-votes {
+            background: #28a745;
+            color: #fff;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            width: 100%;
+        }
+        .btn-save-votes:hover { background: #218838; transform: translateY(-1px); }
+        .btn-save-votes:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+
+        .btn-new-voter {
+            background: #43658b;
+            color: #fff;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            width: 100%;
+        }
+        .btn-new-voter:hover { background: #35698a; transform: translateY(-1px); }
+        .btn-new-voter:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+
+        .admin-btn {
+            border: none;
+            padding: 10px 12px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.2s;
+        }
+        .admin-btn:active { transform: scale(0.98); }
+        .btn-start { background: #28a745; color: #fff; }
+        .btn-stop  { background: #dc3545; color: #fff; }
+        .btn-chart { background: #4e89ae; color: #fff; }
+        .btn-login { background: #6c757d; color: #fff; }
+
+        .admin-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        #vote-counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 0.95em;
+            display: none;
+        }
+
+        /* --- Modal (από modal-audio.css) --- */
+        .modal-image-full {
+            width: 100%;
+            max-height: 50vh;
+            object-fit: contain;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #f9f9f9;
+        }
+
+        .compact-controls-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f1f5f9;
+            padding: 8px 15px;
+            border-radius: 50px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .modal-nav-btn {
+            background: #4e89ae; color: white; border: none;
+            width: 40px; height: 40px; border-radius: 50%;
+            cursor: pointer; font-size: 1.2em; display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s, transform 0.1s;
+            flex-shrink: 0;
+        }
+        .modal-nav-btn:hover { background: #35698a; transform: scale(1.1); }
+        .modal-nav-btn:active { transform: scale(0.95); }
+        .modal-nav-btn:disabled { background: #ccc; cursor: not-allowed; opacity: 0.6; transform: none; }
+
+        .stars-center-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .modal-counter-text { font-size: 0.85em; color: #666; }
+
+        .modal-desc-text {
+            font-size: 1em;
+            color: #333;
+            line-height: 1.45;
+        }
+
+        /* --- Mobile --- */
+        #dyslexia-toggle, #speech-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 999;
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            font-weight: bold;
+        }
+        #speech-toggle { left: 70px; }
+
+        .mobile-fab {
+            display: none;
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 1000;
+            width: 52px; height: 52px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            background: #4e89ae;
+            color: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            font-size: 1.4em;
+            font-weight: bold;
+        }
+        .mobile-panel-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 998;
+            background: rgba(0,0,0,0.35);
+        }
+        .mobile-panel-overlay.show { display: block; }
+
+        #admin-panel.mobile-mode, #student-panel.mobile-mode {
+            display: none;
+            left: 10px !important;
+            right: 10px !important;
+            bottom: 90px !important;
+            width: auto !important;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 22px; }
+            .mobile-fab { display: block; }
+            #admin-panel { display: none; }
+            #student-panel { display: none; }
+            .gallery-winner-badge { font-size: 1.3em; }
+            .grid-stars .star { font-size: 16px; }
+            .btn-save-votes { font-size: 0.95em; padding: 10px 14px; }
+            .modal-nav-btn { width: 30px; height: 30px; font-size: 0.95em; }
+            .star-rating.interactive .star { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <button id="dyslexia-toggle" title="Εναλλαγή γραμματοσειράς">A</button>
+    <button id="speech-toggle" title="Ενεργοποίηση/Απενεργοποίηση Αφήγησης"></button>
+
+    <!-- Mobile FAB -->
+    <button class="mobile-fab" id="mobileFab" onclick="toggleMobilePanel()" title="Μενού">☰</button>
+    <div class="mobile-panel-overlay" id="mobileOverlay" onclick="closeMobilePanel()"></div>
+
+    <div class="container">
+        <h1>📸 Εργασίες Μαθητών</h1>
+        <p class="subtitle">Κάντε κλικ στις εικόνες για μεγέθυνση και βαθμολογία.</p>
+        <div class="poll-meta" id="poll-meta">Φόρτωση ψηφοφορίας…</div>
+
+        <div class="gallery-grid" id="gallery-container"></div>
+
+        <footer class="content-footer">
+            <p>Σύστημα Ψηφοφορίας Εργασιών 2025-2026</p>
+        </footer>
+    </div>
+
+    <!-- Student panel -->
+    <div id="student-panel">
+        <button class="btn-new-voter" id="btnNewVoter" onclick="newVoterSession()">
+            👤 Νέος μαθητής
+        </button>
+        <div style="height:8px"></div>
+        <button class="btn-save-votes" id="btnSubmitVotes" onclick="submitStudentVotes()">
+            💾 Καταχώρηση
+        </button>
+    </div>
+
+    <!-- Local counter (μόνο για αυτό το tablet) -->
+    <div id="vote-counter">
+        <span id="vote-count">0</span> καταχωρήσεις (tablet)
+    </div>
+
+    <!-- Operator panel -->
+    <div id="admin-panel">
+        <h4 style="text-align:center;">🗳️ Επιβλέπων</h4>
+        <div id="voting-status" style="font-size: 0.85em; margin-bottom: 2px; text-align:center;">
+            Κατάσταση: <span id="status-text">...</span>
+        </div>
+        <button class="admin-btn btn-login" id="btnLogin" onclick="operatorLogin()">🔐 Σύνδεση</button>
+        <button class="admin-btn btn-start" id="btnStart" onclick="startVoting()">▶ Έναρξη</button>
+        <button class="admin-btn btn-stop" id="btnStop" onclick="stopVoting()">⏹ Λήξη</button>
+        <button class="admin-btn btn-chart" id="btnChart" onclick="showResultsChart()">📊 Κατάταξη</button>
+    </div>
+
+    <script src="../js/font_toggle.js"></script>
+    <script src="../js/modal-audio.js"></script>
+
+    <script>
+        // =========================
+        //  CONFIG
+        // =========================
+        const BASE_URL = '/school/voting';
+        const API = (route, opt = {}) => {
+            const url = `${BASE_URL}/api/index.php?r=${encodeURIComponent(route)}`;
+            const headers = opt.headers || {};
+            const isJson = opt.json === true;
+            const fetchOpt = {
+                method: opt.method || 'GET',
+                credentials: opt.credentials || 'same-origin',
+                headers: headers,
+                body: opt.body || undefined
+            };
+            if (isJson) {
+                fetchOpt.headers = { 'Content-Type': 'application/json', ...headers };
+                fetchOpt.body = JSON.stringify(opt.data || {});
+            }
+            return fetch(url, fetchOpt).then(async r => {
+                let data = null;
+                try { data = await r.json(); } catch (_) {}
+                if (!r.ok) {
+                    const msg = (data && data.error) ? data.error : `HTTP ${r.status}`;
+                    const err = new Error(msg);
+                    err.status = r.status;
+                    err.data = data;
+                    throw err;
+                }
+                return data;
+            });
+        };
+
+        const qs = new URLSearchParams(location.search);
+        const pollId = parseInt(qs.get('poll') || '0', 10);
+
+        // =========================
+        //  STATE
+        // =========================
+        let galleryData = []; // {id, title, src, description}
+        let currentImageIndex = 0;
+        let currentSessionVotes = {}; // imageId -> rating
+        let topThreeIds = [];
+        let pollInfo = null; // {id,title,starts_at,ends_at,state}
+        let votingStatus = 'inactive'; // inactive | active | ended
+        let voterToken = '';
+        let tabletSubmitCount = 0;
+
+        // =========================
+        //  HELPERS
+        // =========================
+        const fmtDT = (s) => {
+            // αναμένουμε "YYYY-MM-DD HH:MM:SS"
+            if (!s) return '';
+            return s.replace('T', ' ').slice(0, 19);
+        };
+
+        const deriveVotingStatus = () => {
+            if (!pollInfo) return 'inactive';
+
+            // Αν state ended -> ended
+            if (pollInfo.state === 'ended') return 'ended';
+
+            // Αν state prepared -> inactive
+            if (pollInfo.state !== 'running') return 'inactive';
+
+            // Αν running: σεβόμαστε start/end
+            const now = new Date();
+            const starts = new Date(pollInfo.starts_at.replace(' ', 'T'));
+            const ends = new Date(pollInfo.ends_at.replace(' ', 'T'));
+            if (isNaN(starts.getTime()) || isNaN(ends.getTime())) return 'inactive';
+
+            if (now >= starts && now <= ends) return 'active';
+            return 'ended'; // out of window -> συμπεριφέρεται σαν λήξη
+        };
+
+        function getWinnerEmoji(rank) {
+            if (rank === 1) return '🥇';
+            if (rank === 2) return '🥈';
+            if (rank === 3) return '🥉';
+            return '';
+        }
+
+        // =========================
+        //  PREFERENCES (μένουν localStorage)
+        // =========================
+        function saveUserPrefs() {
+            let currentFontClass = '';
+            document.body.classList.forEach(cls => { if(cls.startsWith('font-')) currentFontClass = cls; });
+            localStorage.setItem('iot_pref_font', currentFontClass);
+            const isMuted = document.body.classList.contains('no-speech');
+            localStorage.setItem('iot_pref_speech_muted', isMuted);
+        }
+
+        function restoreUserPrefs() {
+            const savedFont = localStorage.getItem('iot_pref_font');
+            if (savedFont && savedFont !== 'null' && savedFont !== '') {
+                document.body.classList.add(savedFont);
+                const fontBtn = document.getElementById('dyslexia-toggle');
+                if (fontBtn) {
+                    fontBtn.classList.add('active');
+                    fontBtn.style.backgroundColor = '#4e89ae';
+                    fontBtn.style.color = '#fff';
+                }
+            }
+
+            const isMuted = localStorage.getItem('iot_pref_speech_muted');
+            const speechBtn = document.getElementById('speech-toggle');
+
+            if (isMuted === 'true') {
+                document.body.classList.add('no-speech');
+                if (speechBtn) speechBtn.classList.add('active');
+            } else {
+                document.body.classList.remove('no-speech');
+                if (speechBtn) speechBtn.classList.remove('active');
+            }
+
+            if (speechBtn && typeof updateSpeechHead === 'function') {
+                updateSpeechHead(speechBtn);
+            }
+        }
+
+        // =========================
+        //  MOBILE UI
+        // =========================
+        function setupMobileUI() {
+            if (window.innerWidth <= 600) updateMobilePanels();
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth <= 600) updateMobilePanels();
+                else closeMobilePanel();
+            });
+        }
+
+        function updateMobilePanels() {
+            const adminPanel = document.getElementById('admin-panel');
+            const studentPanel = document.getElementById('student-panel');
+
+            if (adminPanel && window.getComputedStyle(adminPanel).display !== 'none') {
+                adminPanel.classList.add('mobile-mode');
+            }
+            if (studentPanel && window.getComputedStyle(studentPanel).display !== 'none') {
+                studentPanel.classList.add('mobile-mode');
+            }
+        }
+
+        function toggleMobilePanel() {
+            const overlay = document.getElementById('mobileOverlay');
+            const adminPanel = document.getElementById('admin-panel');
+            const studentPanel = document.getElementById('student-panel');
+
+            if (overlay.classList.contains('show')) {
+                closeMobilePanel();
+            } else {
+                overlay.classList.add('show');
+
+                // αν είναι ενεργή η ψηφοφορία δείχνουμε panel μαθητή, αλλιώς panel επιβλέποντα
+                if (votingStatus === 'active') {
+                    studentPanel.classList.add('mobile-mode');
+                    studentPanel.style.display = 'block';
+                } else {
+                    adminPanel.classList.add('mobile-mode');
+                    adminPanel.style.display = 'flex';
+                }
+            }
+        }
+
+        function closeMobilePanel() {
+            const overlay = document.getElementById('mobileOverlay');
+            const adminPanel = document.getElementById('admin-panel');
+            const studentPanel = document.getElementById('student-panel');
+
+            overlay.classList.remove('show');
+
+            if (window.innerWidth <= 600) {
+                adminPanel.style.display = 'none';
+                studentPanel.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const activeModal = document.querySelector('.modal-overlay.show') || document.getElementById('modalOverlay');
+            const isVisible = activeModal && window.getComputedStyle(activeModal).display === 'flex';
+
+            if (isVisible) {
+                if (e.key === 'Escape') { e.preventDefault(); forceCloseModal(); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); changeGalleryImage(1); }
+                if (e.key === 'ArrowLeft') { e.preventDefault(); changeGalleryImage(-1); }
+            }
+        });
+
+        function forceCloseModal() {
+            const closeBtn = document.querySelector('.close-btn') || document.querySelector('.modal-close');
+            if (closeBtn) closeBtn.click();
+            else {
+                const modal = document.getElementById('modalOverlay');
+                if(modal) { modal.classList.remove('show'); modal.style.display = 'none'; }
+                if(typeof stopSpeech === 'function') stopSpeech();
+            }
+        }
+
+        // =========================
+        //  DATA LOAD
+        // =========================
+        async function loadPollAndImages() {
+            if (!pollId) {
+                document.getElementById('poll-meta').innerHTML =
+                    'Λείπει το <b>poll</b> στο URL. Παράδειγμα: <b>?poll=12</b>';
+                return;
+            }
+
+            pollInfo = (await API(`/kiosk/polls/${pollId}`)).poll;
+            const imgs = (await API(`/kiosk/polls/${pollId}/images`)).images || [];
+
+            // Προσαρμογή στο σχήμα που περιμένει το UI
+            galleryData = imgs.map(im => ({
+                id: String(im.id),
+                title: im.title || `Εικόνα #${im.id}`,
+                src: `${BASE_URL}/${im.file_path}`,
+                description: '' // αν έχεις πεδίο description στη DB, συμπλήρωσέ το εδώ
+            }));
+
+            votingStatus = deriveVotingStatus();
+            renderPollMeta();
+            updatePanels();
+            renderGrid();
+
+            if (votingStatus === 'active') {
+                await newVoterSession(true);
+            }
+        }
+
+        function renderPollMeta() {
+            const el = document.getElementById('poll-meta');
+            if (!pollInfo) { el.textContent = ''; return; }
+
+            const st = fmtDT(pollInfo.starts_at);
+            const en = fmtDT(pollInfo.ends_at);
+
+            let stLabel = '';
+            if (votingStatus === 'active') stLabel = '<span style="color:#28a745;font-weight:bold;">ΕΝΕΡΓΗ 🟢</span>';
+            else if (votingStatus === 'ended') stLabel = '<span style="color:#dc3545;font-weight:bold;">ΕΛΗΞΕ 🔴</span>';
+            else stLabel = '<span style="color:#666;font-weight:bold;">ΑΝΑΜΟΝΗ</span>';
+
+            el.innerHTML = `Ψηφοφορία: <b>${pollInfo.title}</b> | ${st} → ${en} | ${stLabel}`;
+        }
+
+        // =========================
+        //  VOTING LOGIC (server-based)
+        // =========================
+        function handleStarClick(id, rating) {
+            if (votingStatus !== 'active') return;
+            currentSessionVotes[id] = rating;
+            updateModalStarsUI(rating);
+            updateGridStarUI(id, rating);
+        }
+
+        async function newVoterSession(silent = false) {
+            if (votingStatus !== 'active') {
+                voterToken = '';
+                currentSessionVotes = {};
+                updatePanels();
+                return;
+            }
+
+            try {
+                const res = await API(`/kiosk/polls/${pollId}/voter-sessions`, { method: 'POST', json: true, data: {} });
+                voterToken = res.token || '';
+                currentSessionVotes = {};
+                renderGrid(); // καθάρισε τα grid-stars για νέο μαθητή
+                updatePanels();
+                if (!silent) {
+                    Swal.fire({ icon: 'info', title: 'Έτοιμο!', text: 'Νέος μαθητής μπορεί να ψηφίσει.', timer: 1600, showConfirmButton: false });
+                }
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: 'Σφάλμα', text: e.message || 'Δεν έγινε δημιουργία νέας συνεδρίας.' });
+            }
+        }
+
+        async function submitStudentVotes() {
+            if (votingStatus !== 'active') return;
+
+            const entries = Object.entries(currentSessionVotes);
+            if (entries.length === 0) return;
+
+            const votes = entries.map(([imageId, rating]) => ({ imageId: parseInt(imageId, 10), rating: parseInt(rating, 10) }))
+                                 .filter(v => v.imageId > 0 && v.rating >= 1 && v.rating <= 5);
+
+            if (votes.length === 0) return;
+
+            if (!voterToken) {
+                await newVoterSession(true);
+                if (!voterToken) {
+                    Swal.fire({ icon: 'error', title: 'Σφάλμα', text: 'Δεν υπάρχει ενεργή συνεδρία μαθητή.' });
+                    return;
+                }
+            }
+
+            try {
+                await API(`/kiosk/polls/${pollId}/submit`, {
+                    method: 'POST',
+                    json: true,
+                    data: { token: voterToken, votes }
+                });
+
+                forceCloseModal();
+                if(typeof playSound === 'function') playSound('success');
+
+                tabletSubmitCount++;
+                updateVoteCounter();
+
+                Swal.fire({ icon: 'success', title: 'Καταχωρήθηκε!', text: 'Πάμε στον επόμενο.', timer: 1600, showConfirmButton: false });
+
+                // αυτόματα νέος μαθητής
+                await newVoterSession(true);
+
+            } catch (e) {
+                const msg = e.message || 'Αποτυχία καταχώρησης.';
+                if (e.status === 401) {
+                    Swal.fire({ icon: 'error', title: 'Μη έγκυρο token', text: 'Πάτα "Νέος μαθητής" και ξαναδοκίμασε.' });
+                    voterToken = '';
+                    return;
+                }
+                if (e.status === 403) {
+                    Swal.fire({ icon: 'warning', title: 'Δεν επιτρέπεται', text: 'Η ψηφοφορία δεν είναι ενεργή.' });
+                    await refreshPollStatus();
+                    return;
+                }
+                if (e.status === 409) {
+                    Swal.fire({ icon: 'warning', title: 'Ήδη καταχωρήθηκε', text: 'Πάτα "Νέος μαθητής".' });
+                    voterToken = '';
+                    return;
+                }
+                Swal.fire({ icon: 'error', title: 'Σφάλμα', text: msg });
+            }
+        }
+
+        async function refreshPollStatus() {
+            if (!pollId) return;
+            pollInfo = (await API(`/kiosk/polls/${pollId}`)).poll;
+            votingStatus = deriveVotingStatus();
+            renderPollMeta();
+            updatePanels();
+            renderGrid();
+        }
+
+        // =========================
+        //  STARS HTML
+        // =========================
+        function generateStarsHTML(id, location) {
+            if (votingStatus === 'active') {
+                const currentRating = currentSessionVotes[id] || 0;
+                const isGrid = (location === 'grid');
+                const containerClass = isGrid ? 'grid-stars' : 'interactive';
+                const starClass = isGrid ? 'read-only' : 'interactive';
+
+                let html = `<div class="star-rating ${containerClass}" id="stars-${id}-${location}">`;
+                for (let i = 1; i <= 5; i++) {
+                    const filled = i <= currentRating ? 'filled' : '';
+                    const onclickAttr = isGrid ? '' : `onclick="handleStarClick('${id}', ${i})"`;
+                    html += `<span class="star ${starClass} ${filled}" ${onclickAttr}>★</span>`;
+                }
+                html += '</div>';
+                return html;
+            }
+
+            if (votingStatus === 'ended') {
+                // Στο ended δείχνουμε μόνο σήμανση (Μ.Ο. / ψήφοι) μέσα από results chart.
+                // Στο grid βάζουμε ουδέτερο μήνυμα.
+                return `<span style="font-size:0.85em; color:#666;">Η ψηφοφορία έληξε</span>`;
+            }
+
+            return `<span style="font-size:0.85em; color:#999;">Αναμονή Έναρξης</span>`;
+        }
+
+        // =========================
+        //  TOP 3 (μέσω results endpoint)
+        // =========================
+        async function calculateTopThreeFromServer() {
+            topThreeIds = [];
+            if (votingStatus !== 'ended') return;
+
+            try {
+                const res = await API(`/admin/polls/${pollId}/results`, { method: 'GET', credentials: 'include' });
+                const rows = res.results || [];
+
+                // Αν δεν υπάρχουν ψήφοι, τέλος
+                const totalVotes = rows.reduce((s, r) => s + (parseInt(r.votes_count || '0', 10) || 0), 0);
+                if (totalVotes === 0) return;
+
+                // ταξινόμηση: avg desc, count desc
+                const sorted = [...rows].sort((a,b) => {
+                    const avga = parseFloat(a.avg_rating || '0') || 0;
+                    const avgb = parseFloat(b.avg_rating || '0') || 0;
+                    if (avgb !== avga) return avgb - avga;
+                    const ca = parseInt(a.votes_count || '0', 10) || 0;
+                    const cb = parseInt(b.votes_count || '0', 10) || 0;
+                    return cb - ca;
+                });
+
+                let currentRank = 0;
+                let prevAvg = null;
+                let prevCount = null;
+
+                for (let i = 0; i < sorted.length; i++) {
+                    const avg = parseFloat(sorted[i].avg_rating || '0') || 0;
+                    const cnt = parseInt(sorted[i].votes_count || '0', 10) || 0;
+
+                    if (prevAvg !== avg || prevCount !== cnt) currentRank = i + 1;
+
+                    if (currentRank <= 3) topThreeIds.push(String(sorted[i].image_id));
+                    else break;
+
+                    prevAvg = avg;
+                    prevCount = cnt;
+                }
+
+            } catch (e) {
+                // αν δεν είμαστε login, απλά δεν δείχνουμε νικητές
+                topThreeIds = [];
+            }
+        }
+
+        function getWinnerRank(id) {
+            if (topThreeIds.length === 0) return 0;
+            if (votingStatus !== 'ended') return 0;
+
+            // compute rank based on topThreeIds ordering with ties already handled -> 1/2/3
+            // εδώ απλά: αν ανήκει στο topThreeIds, χρειάζεται πραγματικό rank.
+            // Θα το ξαναυπολογίσουμε με server results όταν ανοίγει chart, άρα για grid κρατάμε απλοποίηση:
+            // 1ο στοιχείο group -> 1, επόμενα group -> 2 κλπ. Δεν έχουμε τα avg/cnt εδώ.
+            // Για να μην πουλάμε "ακρίβεια" χωρίς δεδομένα, δείχνουμε badge μόνο, χωρίς αριθμητικό rank.
+            // Άρα: επιστρέφουμε 1/2/3 με βάση θέση μέχρι 3 (καλό αρκετά για την εμφάνιση).
+            const idx = topThreeIds.indexOf(String(id));
+            if (idx === -1) return 0;
+            if (idx === 0) return 1;
+            if (idx === 1) return 2;
+            return 3;
+        }
+
+        // =========================
+        //  GRID & MODAL
+        // =========================
+        async function renderGrid() {
+            const container = document.getElementById('gallery-container');
+            container.innerHTML = '';
+
+            await calculateTopThreeFromServer();
+
+            if (!galleryData || galleryData.length === 0) {
+                container.innerHTML = '<div style="padding:20px;color:#666;text-align:center;">Δεν υπάρχουν εικόνες.</div>';
+                return;
+            }
+
+            galleryData.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                const rank = getWinnerRank(item.id);
+                const winnerClass = rank > 0 ? `winner-${rank}` : '';
+
+                itemDiv.className = `gallery-item ${winnerClass}`;
+                itemDiv.onclick = () => { openGalleryAt(index); };
+
+                const winnerBadge = rank > 0 ? `<span class="gallery-winner-badge">${getWinnerEmoji(rank)}</span>` : '';
+
+                itemDiv.innerHTML = `
+                    <div class="img-wrapper">
+                        <img src="${item.src}" alt="${item.title}" class="gallery-thumb">
+                    </div>
+                    <div class="gallery-caption-preview">
+                        <h3>${item.title}</h3>
+                        ${generateStarsHTML(item.id, 'grid')}
+                        <span class="gallery-img-number">#${index + 1}</span>
+                        ${winnerBadge}
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+
+        function updateModalStarsUI(rating) {
+            const stars = document.querySelectorAll('#modalText .star-rating.interactive .star');
+            stars.forEach((star, index) => {
+                if (index < rating) star.classList.add('filled');
+                else star.classList.remove('filled');
+            });
+        }
+
+        function updateGridStarUI(id, rating) {
+            const container = document.getElementById(`stars-${id}-grid`);
+            if (!container) return;
+            const stars = container.querySelectorAll('.star');
+            stars.forEach((star, index) => {
+                if (index < rating) star.classList.add('filled');
+                else star.classList.remove('filled');
+            });
+        }
+
+        function openGalleryAt(index) {
+            currentImageIndex = index;
+            updateModalContent();
+            const currentId = galleryData[currentImageIndex].id;
+            if(!window.modalData) window.modalData = {};
+            showModal(null, currentId);
+        }
+
+        function changeGalleryImage(offset) {
+            let newIndex = currentImageIndex + offset;
+            if (newIndex < 0) return;
+            if (newIndex >= galleryData.length) return;
+
+            currentImageIndex = newIndex;
+            if(typeof stopSpeech === 'function') stopSpeech();
+
+            updateModalContent();
+            const currentItem = galleryData[currentImageIndex];
+            document.getElementById('modalTitle').innerHTML = currentItem.title;
+            const bodyHTML = generateModalBodyHTML(currentItem, currentImageIndex, galleryData.length);
+            document.getElementById('modalText').innerHTML = bodyHTML;
+
+            if (!document.body.classList.contains('no-speech') && typeof playAudio === 'function') {
+               setTimeout(playAudio, 200);
+            }
+        }
+
+        function generateModalBodyHTML(item, index, total) {
+            const prevDisabled = (index === 0) ? 'disabled' : '';
+            const nextDisabled = (index === total - 1) ? 'disabled' : '';
+
+            const rank = getWinnerRank(item.id);
+            const modalBadge = (votingStatus === 'ended' && rank > 0) ? `<span class="modal-winner-badge">${getWinnerEmoji(rank)}</span>` : '';
+
+            let html = `
+            <div style="position: relative;">
+                ${modalBadge}
+                <img src="${item.src}" class="modal-image-full" alt="${item.title}">
+            </div>`;
+
+            html += `
+            <div class="compact-controls-bar no-read">
+                <button class="modal-nav-btn" onclick="changeGalleryImage(-1)" ${prevDisabled} title="Προηγούμενη">◄</button>
+                <div class="stars-center-wrapper">
+                    ${generateStarsHTML(item.id, 'modal')}
+                    <span class="modal-counter-text">Εικόνα ${index + 1} από ${total}</span>
+                </div>
+                <button class="modal-nav-btn" onclick="changeGalleryImage(1)" ${nextDisabled} title="Επόμενη">►</button>
+            </div>
+            `;
+
+            if (item.description) html += `<div class="modal-desc-text">${item.description}</div>`;
+            else html += `<div class="modal-desc-text" style="color:#666;">&nbsp;</div>`;
+
+            return html;
+        }
+
+        function updateModalContent() {
+            const item = galleryData[currentImageIndex];
+            const htmlContent = generateModalBodyHTML(item, currentImageIndex, galleryData.length);
+            window.modalData = window.modalData || {};
+            window.modalData[item.id] = { title: item.title, text: htmlContent };
+        }
+
+        // =========================
+        //  PANELS
+        // =========================
+        function updatePanels() {
+            const textSpan = document.getElementById('status-text');
+            const btnStart = document.getElementById('btnStart');
+            const btnStop = document.getElementById('btnStop');
+            const btnChart = document.getElementById('btnChart');
+            const studentPanel = document.getElementById('student-panel');
+            const btnSubmit = document.getElementById('btnSubmitVotes');
+            const btnNew = document.getElementById('btnNewVoter');
+
+            if (votingStatus === 'active') {
+                textSpan.innerHTML = '<span style="color:#28a745; font-weight:bold;">ΕΝΕΡΓΗ 🟢</span>';
+                btnStart.disabled = true;
+                btnStop.disabled = false;
+                btnChart.style.display = 'none';
+
+                studentPanel.style.display = 'block';
+                btnSubmit.disabled = false;
+                btnNew.disabled = false;
+            } else if (votingStatus === 'ended') {
+                textSpan.innerHTML = '<span style="color:#dc3545; font-weight:bold;">ΕΛΗΞΕ 🔴</span>';
+                btnStart.disabled = false;
+                btnStop.disabled = true;
+                btnChart.style.display = 'block';
+
+                studentPanel.style.display = 'none';
+            } else {
+                textSpan.innerHTML = 'Αναμονή';
+                btnStart.disabled = false;
+                btnStop.disabled = true;
+                btnChart.style.display = 'none';
+
+                studentPanel.style.display = 'none';
+            }
+
+            updateVoteCounter();
+
+            if (window.innerWidth <= 600) {
+                updateMobilePanels();
+            }
+        }
+
+        function updateVoteCounter() {
+            const counter = document.getElementById('vote-counter');
+            const countSpan = document.getElementById('vote-count');
+
+            if (votingStatus === 'active') {
+                countSpan.textContent = String(tabletSubmitCount);
+                counter.style.display = 'block';
+            } else {
+                counter.style.display = 'none';
+            }
+        }
+
+        // =========================
+        //  OPERATOR AUTH + START/END + RESULTS
+        // =========================
+        async function operatorLogin() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Σύνδεση Επιβλέποντα',
+                html:
+                    '<input id="swal-u" class="swal2-input" placeholder="username">' +
+                    '<input id="swal-p" type="password" class="swal2-input" placeholder="password">',
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Σύνδεση',
+                cancelButtonText: 'Άκυρο',
+                preConfirm: () => {
+                    const u = document.getElementById('swal-u').value.trim();
+                    const p = document.getElementById('swal-p').value;
+                    if (!u || !p) {
+                        Swal.showValidationMessage('Συμπλήρωσε username/password');
+                        return false;
+                    }
+                    return { u, p };
+                }
+            });
+
+            if (!formValues) return;
+
+            try {
+                await API('/auth/login', { method: 'POST', json: true, data: { username: formValues.u, password: formValues.p }, credentials: 'include' });
+                Swal.fire({ icon: 'success', title: 'ΟΚ', text: 'Συνδέθηκε.', timer: 1200, showConfirmButton: false });
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: 'Αποτυχία', text: e.message || 'Λάθος στοιχεία.' });
+            }
+        }
+
+        async function startVoting() {
+            if (!pollId) return;
+            try {
+                await API(`/operator/polls/${pollId}/start`, { method: 'POST', json: true, data: {}, credentials: 'include' });
+                await refreshPollStatus();
+                if (votingStatus === 'active') await newVoterSession(true);
+                closeMobilePanel();
+            } catch (e) {
+                if (e.status === 401) {
+                    Swal.fire({ icon: 'warning', title: 'Θέλει σύνδεση', text: 'Κάνε "Σύνδεση" πρώτα.' });
+                    return;
+                }
+                Swal.fire({ icon: 'error', title: 'Σφάλμα', text: e.message || 'Δεν έγινε έναρξη.' });
+            }
+        }
+
+        async function stopVoting() {
+            if (!pollId) return;
+
+            // κλείσε modal αν είναι ανοικτό
+            const activeModal = document.querySelector('.modal-overlay.show') || document.getElementById('modalOverlay');
+            const isModalOpen = activeModal && window.getComputedStyle(activeModal).display === 'flex';
+            if (isModalOpen) forceCloseModal();
+
+            const res = await Swal.fire({
+                title: 'Λήξη ψηφοφορίας;',
+                text: 'Δεν θα επιτρέπονται νέες καταχωρήσεις.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ναι, Λήξη',
+                cancelButtonText: 'Άκυρο'
+            });
+            if (!res.isConfirmed) return;
+
+            try {
+                await API(`/operator/polls/${pollId}/end`, { method: 'POST', json: true, data: {}, credentials: 'include' });
+                await refreshPollStatus();
+                closeMobilePanel();
+            } catch (e) {
+                if (e.status === 401) {
+                    Swal.fire({ icon: 'warning', title: 'Θέλει σύνδεση', text: 'Κάνε "Σύνδεση" πρώτα.' });
+                    return;
+                }
+                Swal.fire({ icon: 'error', title: 'Σφάλμα', text: e.message || 'Δεν έγινε λήξη.' });
+            }
+        }
+
+        async function showResultsChart() {
+            if (!pollId) return;
+
+            try {
+                const res = await API(`/admin/polls/${pollId}/results`, { method: 'GET', credentials: 'include' });
+                const rows = res.results || [];
+
+                // Φτιάχνουμε δεδομένα με σειρά grid
+                const chartData = galleryData.map((item, idx) => {
+                    const row = rows.find(r => String(r.image_id) === String(item.id));
+                    const avg = row ? (parseFloat(row.avg_rating || '0') || 0) : 0;
+                    const count = row ? (parseInt(row.votes_count || '0', 10) || 0) : 0;
+                    return { imgNumber: idx + 1, title: item.title, avg, count };
+                });
+
+                const sortedData = [...chartData].sort((a, b) => {
+                    if (b.avg !== a.avg) return b.avg - a.avg;
+                    return b.count - a.count;
+                });
+
+                let htmlContent = '<div class="chart-container">';
+
+                if (sortedData.every(d => d.count === 0)) {
+                    htmlContent += '<p style="text-align:center; padding: 20px; color: #666;">Δεν υπάρχουν ψήφοι.</p>';
+                } else {
+                    let currentRank = 1;
+                    sortedData.forEach((d, index) => {
+                        if (index > 0) {
+                            const prev = sortedData[index - 1];
+                            if (d.avg !== prev.avg || d.count !== prev.count) currentRank = index + 1;
+                        }
+
+                        const widthPct = (d.avg / 5) * 100;
+                        const displayAvg = d.avg.toFixed(1).replace('.', ',');
+
+                        let rankEmoji = '';
+                        if (currentRank === 1) rankEmoji = '🥇';
+                        else if (currentRank === 2) rankEmoji = '🥈';
+                        else if (currentRank === 3) rankEmoji = '🥉';
+
+                        htmlContent += `
+                        <div style="display:flex;gap:10px;align-items:center;margin:10px 0;">
+                            <div style="width:40px;text-align:center;font-weight:bold;">${rankEmoji || currentRank}</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:0.85em;color:#666;">Εικόνα #${d.imgNumber}</div>
+                                <div style="font-weight:bold;color:#43658b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.title}</div>
+                            </div>
+                            <div style="flex:2;background:#e9ecef;border-radius:12px;height:14px;overflow:hidden;">
+                                <div style="height:14px;width:${widthPct}%;background:#4e89ae;"></div>
+                            </div>
+                            <div style="width:90px;text-align:right;">
+                                <div style="font-weight:bold;">${displayAvg}</div>
+                                <div style="font-size:0.85em;color:#666;">${d.count} ψήφοι</div>
+                            </div>
+                        </div>`;
+                    });
+                }
+
+                htmlContent += '</div>';
+
+                Swal.fire({
+                    title: '📊 Κατάταξη Εργασιών',
+                    html: htmlContent,
+                    width: 750,
+                    confirmButtonText: 'Κλείσιμο'
+                });
+
+            } catch (e) {
+                if (e.status === 401) {
+                    Swal.fire({ icon: 'warning', title: 'Θέλει σύνδεση', text: 'Κάνε "Σύνδεση" για να δεις αποτελέσματα.' });
+                    return;
+                }
+                Swal.fire({ icon: 'error', title: 'Σφάλμα', text: e.message || 'Δεν φόρτωσαν αποτελέσματα.' });
+            }
+        }
+
+        // =========================
+        //  INIT
+        // =========================
+        document.addEventListener('DOMContentLoaded', async () => {
+            restoreUserPrefs();
+            setupMobileUI();
+
+            const fontBtn = document.getElementById('dyslexia-toggle');
+            const speechBtn = document.getElementById('speech-toggle');
+            if(fontBtn) fontBtn.addEventListener('click', () => setTimeout(saveUserPrefs, 50));
+            if(speechBtn) speechBtn.addEventListener('click', () => setTimeout(saveUserPrefs, 50));
+
+            await loadPollAndImages();
+
+            // προαιρετικό: auto refresh status κάθε 20''
+            setInterval(() => { refreshPollStatus().catch(()=>{}); }, 20000);
+        });
+    </script>
+</body>
+</html>

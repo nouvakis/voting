@@ -1,0 +1,72 @@
+<!doctype html><meta charset="utf-8">
+<title>Kiosk test</title>
+
+Poll ID: <input id="pollId" value="1" size="4">
+<button onclick="loadPoll()">load</button>
+<button onclick="newVoter()">new voter</button>
+
+<pre id="out"></pre>
+<div id="images"></div>
+<button onclick="submitVotes()">KATAXORHSH</button>
+
+<script>
+let token = '';
+let votesMap = new Map(); // imageId -> rating
+
+const api = (r, opt={}) => fetch(`/school/voting/api/index.php?r=${encodeURIComponent(r)}`, {
+  headers: { 'Content-Type': 'application/json', ...(opt.headers||{}) },
+  ...opt
+}).then(r=>r.json());
+
+async function loadPoll(){
+  const id = +pollId.value;
+  const p = await api(`/kiosk/polls/${id}`);
+  const imgs = await api(`/kiosk/polls/${id}/images`);
+  out.textContent = JSON.stringify({poll:p, images:imgs},null,2);
+
+  images.innerHTML = '';
+  votesMap.clear();
+
+  (imgs.images||[]).forEach(im=>{
+    const row = document.createElement('div');
+    row.style.margin = '10px 0';
+    row.innerHTML = `
+      <div><b>${im.id}</b> ${im.title}</div>
+      <img src="/school/voting/${im.file_path}" style="max-width:300px;display:block;margin:6px 0">
+      <label>Rating (1-5): <input type="number" min="1" max="5" value="0" id="r_${im.id}"></label>
+    `;
+    images.appendChild(row);
+  });
+}
+
+async function newVoter(){
+  const id = +pollId.value;
+  const res = await api(`/kiosk/polls/${id}/voter-sessions`,{method:'POST',body:'{}'});
+  token = res.token || '';
+  out.textContent = JSON.stringify(res,null,2);
+}
+
+async function submitVotes(){
+  const id = +pollId.value;
+  if (!token) { out.textContent = 'No token. Click new voter.'; return; }
+
+  const inputs = images.querySelectorAll('input[type="number"]');
+  const votes = [];
+  inputs.forEach(inp=>{
+    const imageId = +inp.id.replace('r_','');
+    const rating = +inp.value;
+    if (rating >= 1 && rating <= 5) votes.push({imageId, rating});
+  });
+
+  const res = await api(`/kiosk/polls/${id}/submit`,{
+    method:'POST',
+    body: JSON.stringify({token, votes})
+  });
+  out.textContent = JSON.stringify(res,null,2);
+
+  if (res.ok) {
+    token = '';
+    inputs.forEach(i=>i.value=0);
+  }
+}
+</script>
